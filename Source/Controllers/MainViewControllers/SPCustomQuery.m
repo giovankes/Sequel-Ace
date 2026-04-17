@@ -2144,8 +2144,7 @@ static NSString * const SPDashStyleCommentMarker = @"-- ";
     dataRow = [resultData rowContentsAtIndex:rowIndex];
     
     // Get the primary key if there is one, using any columns present within it
-    SPMySQLResult *theResult = [mySQLConnection queryString:[NSString stringWithFormat:@"SHOW COLUMNS FROM %@.%@",
-                                                             [database backtickQuotedString], [tableForColumn backtickQuotedString]]];
+    SPMySQLResult *theResult = [mySQLConnection queryString:[tableDocumentInstance columnMetadataQueryForTable:tableForColumn inDatabase:database]];
     [theResult setReturnDataAsStrings:YES];
     NSMutableArray *primaryColumnsInSpecifiedTable = [NSMutableArray array];
     for (NSDictionary *eachRow in theResult) {

@@ -75,6 +75,18 @@
 	return (serverVersionNumber - ([self serverMajorVersion]*10000 + [self serverMinorVersion]*100));
 }
 
+- (BOOL)isClickHouse
+{
+	return [[self class] isClickHouseVersionString:[self serverVersionString]];
+}
+
++ (BOOL)isClickHouseVersionString:(NSString *)versionString
+{
+	if (![versionString length]) return NO;
+
+	return ([versionString rangeOfString:@"ClickHouse" options:NSCaseInsensitiveSearch].location != NSNotFound);
+}
+
 #pragma mark -
 #pragma mark Server version comparisons
 

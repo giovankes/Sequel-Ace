@@ -306,6 +306,8 @@
 - (NSString *)databaseEncoding;
 - (void)detectDatabaseEncoding;
 - (BOOL)supportsEncoding;
+- (BOOL)isClickHouseConnection;
+- (NSString *)columnMetadataQueryForTable:(NSString *)tableName inDatabase:(NSString *)databaseName;
 - (void)updateEncodingMenuWithSelectedEncoding:(NSNumber *)encodingTag;
 - (NSNumber *)encodingTagFromMySQLEncoding:(NSString *)mysqlEncoding;
 - (NSString *)mysqlEncodingFromEncodingTag:(NSNumber *)encodingTag;

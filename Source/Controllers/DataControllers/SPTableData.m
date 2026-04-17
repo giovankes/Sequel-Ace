@@ -642,7 +642,7 @@
 
     SPLog(@"createTableSyntaxFromView");
 
-    NSString *queryStr = [NSString stringWithFormat:@"SHOW COLUMNS FROM %@", [tableName backtickQuotedString]];
+    NSString *queryStr = [tableDocumentInstance columnMetadataQueryForTable:tableName inDatabase:[tableListInstance selectedDatabase]];
 
     SPLog(@"queryStr: %@", queryStr);
 
@@ -1066,7 +1066,7 @@
 	tableCreateSyntax = [[NSString alloc] initWithString:syntaxString];
 
 	// Retrieve the SHOW COLUMNS syntax for the table
-	theResult = [mySQLConnection queryString:[NSString stringWithFormat:@"SHOW COLUMNS FROM %@", [viewName backtickQuotedString]]];
+	theResult = [mySQLConnection queryString:[tableDocumentInstance columnMetadataQueryForTable:viewName inDatabase:[tableListInstance selectedDatabase]]];
 	[theResult setReturnDataAsStrings:YES];
 
 	// Check for any errors, but only display them if a connection still exists

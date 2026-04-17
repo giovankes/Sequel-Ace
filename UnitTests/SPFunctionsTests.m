@@ -19,6 +19,7 @@
 + (NSString *)_defaultTLSSuiteListString;
 + (NSArray<NSString *> *)_mergedSSLCipherPreferenceListFromSavedCipherString:(NSString *)savedCipherString disabledMarker:(NSString *)disabledMarker;
 + (NSString *)_reachabilityProbeHostForHost:(NSString *)host useSocket:(BOOL)useSocket hasProxy:(BOOL)hasProxy;
++ (BOOL)isClickHouseVersionString:(NSString *)versionString;
 @end
 
 @interface NSString (TestingColumnHeader)
@@ -185,6 +186,14 @@
     XCTAssertNil([SPMySQLConnection _reachabilityProbeHostForHost:@"[::1]" useSocket:NO hasProxy:NO]);
     XCTAssertEqualObjects([SPMySQLConnection _reachabilityProbeHostForHost:@" db.example.test " useSocket:NO hasProxy:NO], @"db.example.test");
     XCTAssertEqualObjects([SPMySQLConnection _reachabilityProbeHostForHost:@"[2001:db8::5]" useSocket:NO hasProxy:NO], @"2001:db8::5");
+}
+
+- (void)testClickHouseVersionDetectionUsesServerBanner
+{
+    XCTAssertTrue([SPMySQLConnection isClickHouseVersionString:@"ClickHouse server version 24.8.1.1234"]);
+    XCTAssertTrue([SPMySQLConnection isClickHouseVersionString:@"24.8.1.1234-ClickHouse"]);
+    XCTAssertFalse([SPMySQLConnection isClickHouseVersionString:@"8.0.36"]);
+    XCTAssertFalse([SPMySQLConnection isClickHouseVersionString:nil]);
 }
 
 - (void)testMergedCipherPreferencesKeepMissingLegacySuitesBelowDisabledMarker

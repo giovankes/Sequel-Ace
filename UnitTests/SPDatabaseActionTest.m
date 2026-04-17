@@ -45,6 +45,18 @@
 
 @end
 
+@interface SPClickHouseSupportTests : XCTestCase
+
+- (void)testColumnMetadataQuery_UsesShowColumnsForMySQLConnections;
+- (void)testColumnMetadataQuery_UsesExplicitDatabaseForClickHouseConnections;
+- (void)testColumnMetadataQuery_UsesEmptyDatabaseFallbackForClickHouseConnections;
+- (void)testDatabaseDocumentMenuAction_DisablesUserManagerForClickHouse;
+- (void)testDatabaseDocumentMenuAction_DoesNotDisableViewContentForClickHouse;
+- (void)testTablesListMenuAction_DisablesAddTableForClickHouse;
+- (void)testTablesListMenuAction_DoesNotDisableOpenTableInNewTabForClickHouse;
+
+@end
+
 @interface SPServerSupportTests : XCTestCase
 
 - (void)testIsMySQL8Flag_IsTrueForVersion8AndHigher;
@@ -149,6 +161,107 @@
 {
 	XCTAssertTrue([[SPServerSupport alloc] initWithMajorVersion:5 minor:7 release:44].isMySQL5);
 	XCTAssertFalse([[SPServerSupport alloc] initWithMajorVersion:8 minor:0 release:0].isMySQL5);
+}
+
+@end
+
+@implementation SPClickHouseSupportTests
+
++ (NSString *)columnMetadataQueryWithTableName:(NSString *)tableName databaseName:(NSString *)databaseName isClickHouse:(BOOL)isClickHouse
+{
+    if (!isClickHouse) {
+        // MySQL/MariaDB style
+        if (databaseName.length > 0) {
+            return [NSString stringWithFormat:@"SHOW COLUMNS FROM `%@`.`%@`", databaseName, tableName];
+        } else {
+            return [NSString stringWithFormat:@"SHOW COLUMNS FROM `%@`", tableName];
+        }
+    }
+
+    // ClickHouse style — build explicit SELECT from system.columns
+    NSString *safeDatabase = databaseName ?: @"";
+    return [NSString stringWithFormat:
+            @"SELECT name AS Field, "
+            @"type AS Type, "
+            @"if(startsWith(type, 'Nullable('), 'YES', 'NO') AS `Null`, "
+            @"if(is_in_primary_key = 1, 'PRI', '') AS `Key`, "
+            @"default_expression AS `Default`, "
+            @"'' AS Extra "
+            @"FROM system.columns "
+            @"WHERE database = '%@' AND table = '%@' "
+            @"ORDER BY position",
+            safeDatabase, tableName];
+}
+
++ (BOOL)shouldDisableDatabaseDocumentMenuActionForClickHouse:(SEL)action
+{
+    // Disallow user manager on ClickHouse
+    if (action == @selector(showUserManager)) {
+        return YES;
+    }
+    // Allow other common actions
+    return NO;
+}
+
++ (BOOL)shouldDisableTablesListMenuActionForClickHouse:(SEL)action
+{
+    // Disallow adding tables on ClickHouse
+    if (action == @selector(addTable:)) {
+        return YES;
+    }
+    // Allow other actions like opening table in new tab
+    return NO;
+}
+
+- (void)testColumnMetadataQuery_UsesShowColumnsForMySQLConnections
+{
+	NSString *query = [SPClickHouseSupportTests columnMetadataQueryWithTableName:@"events" databaseName:@"analytics" isClickHouse:NO];
+
+	XCTAssertEqualObjects(query, @"SHOW COLUMNS FROM `analytics`.`events`");
+}
+
+- (void)testColumnMetadataQuery_UsesExplicitDatabaseForClickHouseConnections
+{
+	NSString *query = [SPClickHouseSupportTests columnMetadataQueryWithTableName:@"events" databaseName:@"analytics" isClickHouse:YES];
+
+	XCTAssertEqualObjects(query,
+		@"SELECT name AS Field, "
+		@"type AS Type, "
+		@"if(startsWith(type, 'Nullable('), 'YES', 'NO') AS `Null`, "
+		@"if(is_in_primary_key = 1, 'PRI', '') AS `Key`, "
+		@"default_expression AS `Default`, "
+		@"'' AS Extra "
+		@"FROM system.columns "
+		@"WHERE database = 'analytics' AND table = 'events' "
+		@"ORDER BY position");
+}
+
+- (void)testColumnMetadataQuery_UsesEmptyDatabaseFallbackForClickHouseConnections
+{
+	NSString *query = [SPClickHouseSupportTests columnMetadataQueryWithTableName:@"events" databaseName:nil isClickHouse:YES];
+
+	XCTAssertTrue([query containsString:@"database = ''"]);
+	XCTAssertTrue([query containsString:@"table = 'events'"]);
+}
+
+- (void)testDatabaseDocumentMenuAction_DisablesUserManagerForClickHouse
+{
+	XCTAssertTrue([SPClickHouseSupportTests shouldDisableDatabaseDocumentMenuActionForClickHouse:@selector(showUserManager)]);
+}
+
+- (void)testDatabaseDocumentMenuAction_DoesNotDisableViewContentForClickHouse
+{
+	XCTAssertFalse([SPClickHouseSupportTests shouldDisableDatabaseDocumentMenuActionForClickHouse:@selector(viewContent)]);
+}
+
+- (void)testTablesListMenuAction_DisablesAddTableForClickHouse
+{
+	XCTAssertTrue([SPClickHouseSupportTests shouldDisableTablesListMenuActionForClickHouse:@selector(addTable:)]);
+}
+
+- (void)testTablesListMenuAction_DoesNotDisableOpenTableInNewTabForClickHouse
+{
+	XCTAssertFalse([SPClickHouseSupportTests shouldDisableTablesListMenuActionForClickHouse:@selector(openTableInNewTab:)]);
 }
 
 @end
@@ -354,3 +467,4 @@
 }
 
 @end
+

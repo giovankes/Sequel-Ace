@@ -1642,8 +1642,7 @@ static id configureDataCell(SPTableContent *tc, NSDictionary *colDefs, NSString 
 	dataRow = [tableValues rowContentsAtIndex:rowIndex];
 
 	// Get the primary key if there is one, using any columns present within it
-	SPMySQLResult *theResult = [mySQLConnection queryString:[NSString stringWithFormat:@"SHOW COLUMNS FROM %@.%@",
-		[database backtickQuotedString], [tableForColumn backtickQuotedString]]];
+	SPMySQLResult *theResult = [mySQLConnection queryString:[tableDocumentInstance columnMetadataQueryForTable:tableForColumn inDatabase:database]];
 	[theResult setReturnDataAsStrings:YES];
 	NSMutableArray *primaryColumnsInSpecifiedTable = [NSMutableArray array];
 	for (NSDictionary *eachRow in theResult) {
@@ -1786,7 +1785,7 @@ static id configureDataCell(SPTableContent *tc, NSDictionary *colDefs, NSString 
 	}
 
 	// Set autoincrement fields to NULL
-	queryResult = [mySQLConnection queryString:[NSString stringWithFormat:@"SHOW COLUMNS FROM %@", [selectedTable backtickQuotedString]]];
+	queryResult = [mySQLConnection queryString:[tableDocumentInstance columnMetadataQueryForTable:selectedTable inDatabase:[tableDocumentInstance database]]];
 	
 	[queryResult setReturnDataAsStrings:YES];
 	
@@ -2946,7 +2945,7 @@ static id configureDataCell(SPTableContent *tc, NSDictionary *colDefs, NSString 
 	if ( !keys ) {
 		setLimit = NO;
 		keys = [[NSMutableArray alloc] init];
-		SPMySQLResult *theResult = [mySQLConnection queryString:[NSString stringWithFormat:@"SHOW COLUMNS FROM %@", [selectedTable backtickQuotedString]]];
+		SPMySQLResult *theResult = [mySQLConnection queryString:[tableDocumentInstance columnMetadataQueryForTable:selectedTable inDatabase:[tableDocumentInstance database]]];
 		if(!theResult) {
 			SPLog(@"no result from SHOW COLUMNS mysql query! Abort.");
 			return @"";

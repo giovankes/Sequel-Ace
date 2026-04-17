@@ -37,6 +37,8 @@
 - (NSUInteger)serverMajorVersion;
 - (NSUInteger)serverMinorVersion;
 - (NSUInteger)serverReleaseVersion;
+- (BOOL)isClickHouse;
++ (BOOL)isClickHouseVersionString:(NSString *)versionString;
 
 // Server version comparisons
 - (BOOL)serverVersionIsGreaterThanOrEqualTo:(NSUInteger)aMajorVersion minorVersion:(NSUInteger)aMinorVersion releaseVersion:(NSUInteger)aReleaseVersion;

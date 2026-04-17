@@ -239,7 +239,12 @@ static NSString *SPNewTableCollation    = @"SPNewTableCollation";
 
 		// Select the table list for the current database.  On MySQL versions after 5 this will include
 		// views; on MySQL versions >= 5.0.02 select the "full" list to also select the table type column.
-		if ([prefs boolForKey:SPDisplayCommentsInTablesList]) {
+		if ([tableDocumentInstance isClickHouseConnection]) {
+			theResult = [mySQLConnection queryString:[NSString stringWithFormat:
+				@"SELECT name AS Name, if(engine = 'View', 'VIEW', 'BASE TABLE') AS Table_type, comment AS Comment "
+				@"FROM system.tables WHERE database = %@ ORDER BY name",
+				[[tableDocumentInstance database] tickQuotedString]]];
+		} else if ([prefs boolForKey:SPDisplayCommentsInTablesList]) {
 			theResult = [mySQLConnection queryString:@"SHOW TABLE STATUS"];
 		} else {
 			theResult = [mySQLConnection queryString:@"SHOW FULL TABLES"];
@@ -296,26 +301,28 @@ static NSString *SPNewTableCollation    = @"SPNewTableCollation";
 		 * Using information_schema gives us more info (for information window perhaps?) but breaks
 		 * backward compatibility with pre 4 I believe. I left the other methods below, in case.
 		 */
-        NSString *pQuery = [NSString stringWithFormat:@"SELECT * FROM information_schema.routines WHERE routine_schema = %@ ORDER BY routine_name", [[tableDocumentInstance database] tickQuotedString]];
-        theResult = [mySQLConnection queryString:pQuery];
-        [theResult setDefaultRowReturnType:SPMySQLResultRowAsArray];
-        [theResult setReturnDataAsStrings:YES]; //see tables above
-        
-        // Check for mysql errors - if information_schema is not accessible for some reasons
-        // omit adding procedures and functions
-        if(![mySQLConnection queryErrored] && theResult != nil && [theResult numberOfRows] && [theResult numberOfFields] > 3) {
+        if (![tableDocumentInstance isClickHouseConnection]) {
+            NSString *pQuery = [NSString stringWithFormat:@"SELECT * FROM information_schema.routines WHERE routine_schema = %@ ORDER BY routine_name", [[tableDocumentInstance database] tickQuotedString]];
+            theResult = [mySQLConnection queryString:pQuery];
+            [theResult setDefaultRowReturnType:SPMySQLResultRowAsArray];
+            [theResult setReturnDataAsStrings:YES]; //see tables above
 
-            // Add the header row
-            [tables addObject:NSLocalizedString(@"PROCS & FUNCS",@"header for procs & funcs list")];
-            [tableTypes addObject:[NSNumber numberWithInteger:SPTableTypeNone]];
+            // Check for mysql errors - if information_schema is not accessible for some reasons
+            // omit adding procedures and functions
+            if(![mySQLConnection queryErrored] && theResult != nil && [theResult numberOfRows] && [theResult numberOfFields] > 3) {
 
-            for (NSArray *eachRow in theResult) {
-                [tables addObject:[eachRow safeObjectAtIndex:3]];
-                if([[eachRow safeObjectAtIndex:4] isNSNull] == NO ){
-                    if ([[eachRow safeObjectAtIndex:4] isEqualToString:@"PROCEDURE"]) {
-                        [tableTypes addObject:[NSNumber numberWithInteger:SPTableTypeProc]];
-                    } else {
-                        [tableTypes addObject:[NSNumber numberWithInteger:SPTableTypeFunc]];
+                // Add the header row
+                [tables addObject:NSLocalizedString(@"PROCS & FUNCS",@"header for procs & funcs list")];
+                [tableTypes addObject:[NSNumber numberWithInteger:SPTableTypeNone]];
+
+                for (NSArray *eachRow in theResult) {
+                    [tables addObject:[eachRow safeObjectAtIndex:3]];
+                    if([[eachRow safeObjectAtIndex:4] isNSNull] == NO ){
+                        if ([[eachRow safeObjectAtIndex:4] isEqualToString:@"PROCEDURE"]) {
+                            [tableTypes addObject:[NSNumber numberWithInteger:SPTableTypeProc]];
+                        } else {
+                            [tableTypes addObject:[NSNumber numberWithInteger:SPTableTypeFunc]];
+                        }
                     }
                 }
             }
@@ -2033,6 +2040,10 @@ static NSString *SPNewTableCollation    = @"SPNewTableCollation";
 {
 	SEL action = [menuItem action];
 	NSInteger selectedRows = [tablesListView numberOfSelectedRows];
+
+	if ([tableDocumentInstance isClickHouseConnection] && [SPClickHouseSupport shouldDisableTablesListMenuActionForClickHouse:action]) {
+		return NO;
+	}
 
 	if (action == @selector(copyTable:) || 
 		action == @selector(renameTable:) ||

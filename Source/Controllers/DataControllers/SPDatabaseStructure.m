@@ -314,7 +314,19 @@
 			 return;
 		 }
 
-            NSString *theQuery = [NSString stringWithFormat:@"SHOW FULL COLUMNS FROM %@ FROM %@", [aTableName backtickQuotedString], [currentDatabase backtickQuotedString]];
+            NSString *theQuery = nil;
+            if ([mySQLConnection isClickHouse]) {
+                theQuery = [NSString stringWithFormat:
+                            @"SELECT name, type, '' AS collation, "
+                            @"if(startsWith(type, 'Nullable('), 'YES', 'NO') AS is_nullable, "
+                            @"if(is_in_primary_key = 1, 'PRI', '') AS column_key, "
+                            @"default_expression, '' AS extra, '' AS privileges, comment "
+                            @"FROM system.columns WHERE database = %@ AND table = %@ ORDER BY position",
+                            [currentDatabase tickQuotedString],
+                            [aTableName tickQuotedString]];
+            } else {
+                theQuery = [NSString stringWithFormat:@"SHOW FULL COLUMNS FROM %@ FROM %@", [aTableName backtickQuotedString], [currentDatabase backtickQuotedString]];
+            }
             SPLog(@"aTableName: %@", aTableName);
 
 			// Retrieve the column details
@@ -382,7 +394,7 @@
 		}
 
 		// If the MySQL version is higher than 5, also retrieve function/procedure details via the information_schema table
-		if ([mySQLConnection serverMajorVersion] >= 5) {
+		if (![mySQLConnection isClickHouse] && [mySQLConnection serverMajorVersion] >= 5) {
 			// check the connection.
 			// also NO if thread is cancelled which is fine, too (same consequence).
 			if(![self _checkConnection]) {

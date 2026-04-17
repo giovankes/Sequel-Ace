@@ -440,7 +440,7 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
     [mySQLConnection setEncoding:@"utf8mb4"];
 
     // Check if skip-show-database is set to ON
-    if ( [prefs boolForKey:SPShowWarningSkipShowDatabase] ) {
+    if (![mySQLConnection isClickHouse] && [prefs boolForKey:SPShowWarningSkipShowDatabase]) {
         SPMySQLResult *result = [mySQLConnection queryString:@"SHOW VARIABLES LIKE 'skip_show_database'"];
         [result setReturnDataAsStrings:YES];
         if(![mySQLConnection queryErrored] && [result numberOfRows] == 1) {
@@ -1648,6 +1648,12 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
  */
 - (void)detectDatabaseEncoding
 {
+    if ([self isClickHouseConnection]) {
+        selectedDatabaseEncoding = @"utf8";
+        _supportsEncoding = NO;
+        return;
+    }
+
     _supportsEncoding = YES;
 
     NSString *mysqlEncoding = [databaseDataInstance getDatabaseDefaultCharacterSet];
@@ -1680,6 +1686,20 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
 - (BOOL)supportsEncoding
 {
     return _supportsEncoding;
+}
+
+- (BOOL)isClickHouseConnection
+{
+    return [mySQLConnection isClickHouse];
+}
+
+- (NSString *)columnMetadataQueryForTable:(NSString *)tableName inDatabase:(NSString *)databaseName
+{
+    NSString *resolvedDatabaseName = [databaseName length] ? databaseName : [self database];
+
+    return [SPClickHouseSupport columnMetadataQueryWithTableName:tableName
+                                                    databaseName:resolvedDatabaseName
+                                                    isClickHouse:[self isClickHouseConnection]];
 }
 
 #pragma mark -
@@ -3197,6 +3217,9 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
         action == @selector(viewStatus)    ||
         action == @selector(viewTriggers))
     {
+        if ([self isClickHouseConnection] && [SPClickHouseSupport shouldDisableDatabaseDocumentMenuActionForClickHouse:action]) {
+            return NO;
+        }
         return [self database] != nil && [[[tablesListInstance valueForKeyPath:@"tablesListView"] selectedRowIndexes] count];
 
     }
@@ -3245,6 +3268,10 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
         return [self supportsEncoding];
     }
 
+    if (action == @selector(showUserManager)) {
+        return ![self isClickHouseConnection];
+    }
+
     // unhide the debugging info menu
     if (action == @selector(showConnectionDebugMessages:)) {
         if(_isConnected && connectionController->sshTunnel != nil){
@@ -3273,6 +3300,11 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
         action == @selector(showCreateTableSyntax:) ||
         action == @selector(copyCreateTableSyntax:))
     {
+        if ([self isClickHouseConnection]
+            && [SPClickHouseSupport shouldDisableDatabaseDocumentMenuActionForClickHouse:action])
+        {
+            return NO;
+        }
         return [[[tablesListInstance valueForKeyPath:@"tablesListView"] selectedRowIndexes] count];
     }
 
@@ -3700,6 +3732,21 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
     // Clear console item
     if ([identifier isEqualToString:SPMainToolbarClearConsole]) {
         return ([[SPQueryController sharedQueryController] consoleMessageCount] > 0);
+    }
+
+    if ([self isClickHouseConnection]) {
+        if ([identifier isEqualToString:SPMainToolbarTableStructure]
+            || [identifier isEqualToString:SPMainToolbarTableInfo]
+            || [identifier isEqualToString:SPMainToolbarTableRelations]
+            || [identifier isEqualToString:SPMainToolbarTableTriggers]
+            || [identifier isEqualToString:SPMainToolbarUserManager])
+        {
+            return NO;
+        }
+
+        if ([identifier isEqualToString:SPMainToolbarTableContent]) {
+            return (([tablesListInstance tableType] == SPTableTypeTable) || ([tablesListInstance tableType] == SPTableTypeView));
+        }
     }
 
     if (![identifier isEqualToString:SPMainToolbarCustomQuery] && ![identifier isEqualToString:SPMainToolbarUserManager]) {
@@ -5629,6 +5676,10 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
 
 //WARNING: Might be called from code in background threads
 - (void)viewStructure {
+    if ([self isClickHouseConnection]) {
+        [self viewContent];
+        return;
+    }
 
     SPMainQSync(^{
         // Cancel the selection if currently editing a view and unable to save
@@ -5682,6 +5733,11 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
 }
 
 - (void)viewStatus {
+    if ([self isClickHouseConnection]) {
+        [self viewContent];
+        return;
+    }
+
     SPMainQSync(^{
         // Cancel the selection if currently editing a view and unable to save
         if (![self couldCommitCurrentViewActions]) {
@@ -5705,6 +5761,11 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
 }
 
 - (void)viewRelations {
+    if ([self isClickHouseConnection]) {
+        [self viewContent];
+        return;
+    }
+
     SPMainQSync(^{
         // Cancel the selection if currently editing a view and unable to save
         if (![self couldCommitCurrentViewActions]) {
@@ -5722,6 +5783,11 @@ static _Atomic int SPDatabaseDocumentInstanceCounter = 0;
 }
 
 - (void)viewTriggers {
+    if ([self isClickHouseConnection]) {
+        [self viewContent];
+        return;
+    }
+
     SPMainQSync(^{
         // Cancel the selection if currently editing a view and unable to save
         if (![self couldCommitCurrentViewActions]) {
