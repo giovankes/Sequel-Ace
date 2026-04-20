@@ -447,7 +447,7 @@ static unsigned short getRandomPort(void);
                 return;
             }
 
-            TA(@"-o", [NSString stringWithFormat:@"UserKnownHostsFile=\"%@\"", [self prepareFilePathForSshCommand:customKnownHostsFilePath]]);
+            TA(@"-o", [NSString stringWithFormat:@"UserKnownHostsFile=%@", [self prepareFilePathForSshCommand:customKnownHostsFilePath]]);
         }
         else{
             SPLog(@"the ssh config files should point to a known hosts file");

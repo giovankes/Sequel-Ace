@@ -284,7 +284,11 @@ BOOL SPExtractConnectionDetailsFromMySQLURL(NSURL *url, NSMutableDictionary *det
 	if (autoConnect) *autoConnect = NO;
 	if (invalidParameters) *invalidParameters = @[];
 
-	if (!url || ![[url scheme] isEqualToString:@"mysql"] || !details) return NO;
+	if (!url || !details) return NO;
+
+	NSString *scheme = [[url scheme] lowercaseString];
+	if (!([scheme isEqualToString:@"mysql"] || [scheme isEqualToString:@"clickhouse"])) return NO;
+	BOOL isClickHouseURL = [scheme isEqualToString:@"clickhouse"];
 
 	NSString *requestedType = nil;
 	NSSet<NSString *> *validParameterSet = [NSSet setWithArray:SPValidMySQLConnectionURLQueryParameters()];
@@ -350,6 +354,9 @@ BOOL SPExtractConnectionDetailsFromMySQLURL(NSURL *url, NSMutableDictionary *det
 
 	if ([url port]) {
 		[details setObject:[url port] forKey:@"port"];
+	} else if (isClickHouseURL) {
+		// ClickHouse's MySQL-compatible endpoint defaults to 9004.
+		[details setObject:@9004 forKey:@"port"];
 	}
 
 	if ([url user]) {

@@ -884,10 +884,12 @@ static const double SPDelayBeforeCheckingForNewReleases = 10;
 {
     NSURL *url = [NSURL URLWithString:[[event paramDescriptorForKeyword:keyDirectObject] stringValue]];
 
-    if ([[url scheme] isEqualToString:@"sequelace"]) {
+    NSString *scheme = [[url scheme] lowercaseString];
+
+    if ([scheme isEqualToString:@"sequelace"]) {
         [self handleEventWithURL:url];
     }
-    else if([[url scheme] isEqualToString:@"mysql"]) {
+    else if([scheme isEqualToString:@"mysql"] || [scheme isEqualToString:@"clickhouse"]) {
         [self handleMySQLConnectWithURL:url];
     }
     else {

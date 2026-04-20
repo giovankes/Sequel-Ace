@@ -186,6 +186,58 @@
 	XCTAssertEqualObjects(details[@"database"], @"my_database");
 }
 
+- (void)testClickHouseURLParserSupportsExplicitSSHType
+{
+	NSURL *url = [NSURL URLWithString:@"clickhouse://ch_user:ch_password@clickhouse.example.com:9004/analytics?type=ssh&ssh_host=ssh.example.com&ssh_port=22&ssh_user=tunnel_user"];
+	NSMutableDictionary *details = [NSMutableDictionary dictionary];
+	BOOL autoConnect = NO;
+	NSArray<NSString *> *invalidParameters = nil;
+
+	BOOL parsed = SPExtractConnectionDetailsFromMySQLURL(url,
+														 details,
+														 &autoConnect,
+														 &invalidParameters);
+
+	XCTAssertTrue(parsed);
+	XCTAssertTrue(autoConnect);
+	XCTAssertEqual(invalidParameters.count, 0);
+	XCTAssertEqualObjects(details[@"type"], @"SPSSHTunnelConnection");
+	XCTAssertEqualObjects(details[@"host"], @"clickhouse.example.com");
+	XCTAssertEqualObjects(details[@"port"], @9004);
+	XCTAssertEqualObjects(details[@"user"], @"ch_user");
+	XCTAssertEqualObjects(details[@"password"], @"ch_password");
+	XCTAssertEqualObjects(details[@"database"], @"analytics");
+	XCTAssertEqualObjects(details[@"ssh_host"], @"ssh.example.com");
+	XCTAssertEqualObjects(details[@"ssh_port"], @"22");
+	XCTAssertEqualObjects(details[@"ssh_user"], @"tunnel_user");
+}
+
+- (void)testClickHouseURLParserDefaultsPortToMySQLCompatibleEndpoint
+{
+	NSURL *url = [NSURL URLWithString:@"clickhouse://ch_user:ch_password@clickhouse.example.com/analytics?type=ssh&ssh_host=ssh.example.com&ssh_port=22&ssh_user=tunnel_user"];
+	NSMutableDictionary *details = [NSMutableDictionary dictionary];
+	BOOL autoConnect = NO;
+	NSArray<NSString *> *invalidParameters = nil;
+
+	BOOL parsed = SPExtractConnectionDetailsFromMySQLURL(url,
+														 details,
+														 &autoConnect,
+														 &invalidParameters);
+
+	XCTAssertTrue(parsed);
+	XCTAssertTrue(autoConnect);
+	XCTAssertEqual(invalidParameters.count, 0);
+	XCTAssertEqualObjects(details[@"type"], @"SPSSHTunnelConnection");
+	XCTAssertEqualObjects(details[@"host"], @"clickhouse.example.com");
+	XCTAssertEqualObjects(details[@"port"], @9004);
+	XCTAssertEqualObjects(details[@"user"], @"ch_user");
+	XCTAssertEqualObjects(details[@"password"], @"ch_password");
+	XCTAssertEqualObjects(details[@"database"], @"analytics");
+	XCTAssertEqualObjects(details[@"ssh_host"], @"ssh.example.com");
+	XCTAssertEqualObjects(details[@"ssh_port"], @"22");
+	XCTAssertEqualObjects(details[@"ssh_user"], @"tunnel_user");
+}
+
 - (void)testMySQLURLParserInfersSocketTypeFromSocketQueryParameter
 {
 	NSURL *url = [NSURL URLWithString:@"mysql://root@localhost/my_database?socket=%2FUsers%2Fjason%2FLibrary%2FContainers%2Fcom.sequel-ace.sequel-ace%2FData%2Fmysql.sock"];

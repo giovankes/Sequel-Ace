@@ -92,12 +92,12 @@ BOOL SPIsLikelyLocalNetworkHost(NSString *host);
 BOOL SPSSHNoRouteToHostLikelyLocalNetworkPrivacyIssue(NSString *errorMessage, NSString *debugDetail, NSString *sshHost);
 
 /**
- * Returns the supported query parameters for mysql:// connection URLs.
+ * Returns the supported query parameters for mysql:// and clickhouse:// connection URLs.
  */
 NSArray<NSString *> *SPValidMySQLConnectionURLQueryParameters(void);
 
 /**
- * Parse mysql:// URL connection details into the supplied dictionary.
+ * Parse mysql:// or clickhouse:// URL connection details into the supplied dictionary.
  *
  * @param url The URL to parse.
  * @param details Mutable dictionary to receive parsed values (type, host, user, etc).
